@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require('dotenv').config();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
@@ -43,18 +43,15 @@ async function run() {
     app.post("/admin-login", async (req, res) => {
       const { username, password } = req.body;
 
-      // Validate username
       if (username !== ADMIN_USERNAME) {
         return res.status(401).send({ message: "Invalid login credentials" });
       }
 
-      // Validate password
       const isPasswordCorrect = bcrypt.compareSync(password, ADMIN_PASSWORD_HASH);
       if (!isPasswordCorrect) {
         return res.status(401).send({ message: "Invalid login credentials" });
       }
 
-      // Generate JWT
       const token = jwt.sign({ username }, process.env.JWT_SECRET, { expiresIn: '1h' });
       res.status(200).send({ token });
     });
@@ -99,6 +96,23 @@ async function run() {
       }
     });
 
+    // Delete user
+    app.delete('/delete-user/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        const result = await userCL.deleteOne({ _id: new ObjectId(id) });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "User not found" });
+        }
+
+        res.send({ message: "User deleted successfully" });
+      } catch (error) {
+        console.error("Error deleting user:", error);
+        res.status(500).send({ message: "Failed to delete user" });
+      }
+    });
+
   } finally {
     // await client.close(); // Keep connection open
   }
@@ -107,7 +121,7 @@ async function run() {
 // Run the server
 run().catch(console.dir);
 
-// Root route (must be OUTSIDE run())
+// Root route
 app.get("/", (req, res) => {
   res.send("Server is Running! 🚀");
 });
